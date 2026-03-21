@@ -1,0 +1,23 @@
+﻿src/app/settings/page.tsx(34,16): error TS2339: Property 'managePreferences' does not exist on type 'Translations'.
+src/app/settings/page.tsx(42,29): error TS2339: Property 'language' does not exist on type 'Translations'.
+src/app/settings/page.tsx(43,35): error TS2339: Property 'languageDescription' does not exist on type 'Translations'.
+src/app/settings/page.tsx(53,29): error TS2339: Property 'profile' does not exist on type 'Translations'.
+src/app/settings/page.tsx(54,35): error TS2339: Property 'profileDescription' does not exist on type 'Translations'.
+src/app/settings/page.tsx(58,59): error TS2339: Property 'name' does not exist on type 'Translations'.
+src/components/ui/toaster.tsx(5,3): error TS2724: '"@/components/ui/toast"' has no exported member named 'Toast'. Did you mean 'Toaster'?
+src/components/ui/toaster.tsx(6,3): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastClose'.
+src/components/ui/toaster.tsx(7,3): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastDescription'.
+src/components/ui/toaster.tsx(8,3): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastProvider'.
+src/components/ui/toaster.tsx(9,3): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastTitle'.
+src/components/ui/toaster.tsx(10,3): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastViewport'.
+src/components/ui/use-toast.ts(6,15): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastActionElement'.
+src/components/ui/use-toast.ts(6,35): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastProps'.
+src/components/ui/use-toast.ts(158,22): error TS7006: Parameter 'open' implicitly has an 'any' type.
+src/hooks/use-toast.ts(6,15): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastActionElement'.
+src/hooks/use-toast.ts(6,35): error TS2305: Module '"@/components/ui/toast"' has no exported member 'ToastProps'.
+src/hooks/use-toast.ts(158,22): error TS7006: Parameter 'open' implicitly has an 'any' type.
+src/lib/prisma.ts(3,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.
+src/server/db.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.
+src/trpc/query-client.ts(4,8): error TS2307: Cannot find module '@tanstack/react-query' or its corresponding type declarations.
+src/trpc/query-client.ts(17,32): error TS7006: Parameter 'query' implicitly has an 'any' type.
+src/trpc/react.tsx(3,55): error TS2307: Cannot find module '@tanstack/react-query' or its corresponding type declarations.
