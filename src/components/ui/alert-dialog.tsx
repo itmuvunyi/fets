@@ -46,8 +46,12 @@ function AlertDialogOverlay({
 
 function AlertDialogContent({
   className,
+  showCloseButton = true,
+  children,
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
@@ -58,7 +62,9 @@ function AlertDialogContent({
           className,
         )}
         {...props}
-      />
+      >
+        {children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }

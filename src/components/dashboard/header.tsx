@@ -5,7 +5,11 @@ import { useAuth } from "@/lib/auth";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { LanguageSwitcher } from "@/components/language/language-switcher";
 import { useTranslation } from "@/lib/i18n";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, BellOff } from "lucide-react";
+import { updateUserSettings } from "@/app/actions/user-settings";
+import { addToast } from "@/lib/toast";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 import {
   AlertDialog,
@@ -40,6 +44,44 @@ export function DashboardHeader() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 mr-2 bg-muted/50 px-3 py-1.5 rounded-full border border-primary/10">
+              <BellOff className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="mute-notifications" className="text-xs cursor-pointer">
+                Mute Today
+              </Label>
+              <Switch 
+                id="mute-notifications"
+                checked={!!user?.muteNotificationsUntil && new Date(user.muteNotificationsUntil) > new Date()}
+                onCheckedChange={async (checked) => {
+                  if (!user) return;
+                  const muteUntil = checked ? new Date() : null;
+                  if (muteUntil) {
+                    muteUntil.setHours(23, 59, 59, 999);
+                  }
+                  
+                  const result = await updateUserSettings(user.id, { 
+                    muteNotificationsUntil: muteUntil?.toISOString() || null 
+                  });
+                  
+                  if (result.success) {
+                    addToast({
+                      title: checked ? "Notifications Muted" : "Notifications Unmuted",
+                      description: checked ? "You won't receive alerts for the rest of today." : "Alerts are now active.",
+                      type: "success"
+                    });
+                    // Force refresh user state if possible or let session handle it
+                    window.location.reload(); // Simple way to sync for now since state is in AuthProvider session fetch
+                  } else {
+                    addToast({
+                      title: "Update Failed",
+                      description: "Could not update notification settings.",
+                      type: "error"
+                    });
+                  }
+                }}
+              />
+            </div>
+
             <LanguageSwitcher />
             <NotificationBell />
             <div className="flex items-center gap-2 text-sm">

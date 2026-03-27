@@ -9,6 +9,17 @@ import { removeFoodItem } from "@/app/actions/food"
 import { useAuth } from "@/lib/auth"
 import { Calendar, Package, Trash2, Edit, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface FoodItemCardProps {
   item: FoodItem
@@ -125,19 +136,48 @@ export function FoodItemCard({ item, onEdit, onDelete }: FoodItemCardProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => onEdit(item)} className="flex-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onEdit(item)} 
+            className="flex-1 hover:bg-secondary hover:text-secondary-foreground"
+          >
             <Edit className="w-4 h-4 mr-1" />
             Edit
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="text-destructive hover:text-destructive bg-transparent"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isDeleting}
+                className="text-destructive hover:text-destructive bg-transparent"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  Delete Food Item?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </CardContent>
     </Card>

@@ -13,7 +13,14 @@ export async function syncUserToDatabase(id: string, email: string, name?: strin
   try {
     // Check if user already exists
     const existingUser = await db.user.findUnique({
-      where: { id }
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        alertThresholdDays: true,
+        muteNotificationsUntil: true,
+      }
     })
 
     if (existingUser) {

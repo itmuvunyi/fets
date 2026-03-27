@@ -1,153 +1,290 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Camera, X, Scan, Loader2 } from "lucide-react"
-import { searchByBarcode } from "@/app/actions/food"
+import { Camera, Scan, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 
 interface BarcodeScannerProps {
   onBarcodeDetected: (barcode: string) => void
   onClose: () => void
 }
 
-export function BarcodeScanner({ onBarcodeDetected, onClose }: BarcodeScannerProps) {
-  const [isScanning, setIsScanning] = useState(false)
+type ScannerState = "idle" | "requesting" | "scanning" | "error"
+
+export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
+  const [state, setState] = useState<ScannerState>("idle")
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [manualBarcode, setManualBarcode] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingManual, setIsLoadingManual] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [hasBarcodeDetector, setHasBarcodeDetector] = useState(false)
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const detectorRef = useRef<any>(null)
+
+  // Check for BarcodeDetector support on mount
+  useEffect(() => {
+    if ("BarcodeDetector" in window) {
+      setHasBarcodeDetector(true)
+      // @ts-ignore
+      detectorRef.current = new (window as any).BarcodeDetector({
+        formats: ["ean_13", "ean_8", "qr_code", "code_128", "code_39", "upc_a", "upc_e"],
+      })
+    }
+  }, [])
+
+  // Attach stream to video element whenever scanning state activates
+  useEffect(() => {
+    if (state === "scanning" && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch(console.error)
+    }
+  }, [state])
+
+  const scanFrame = useCallback(async () => {
+    if (!videoRef.current || !detectorRef.current || state !== "scanning") return
+
+    if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      try {
+        const barcodes = await detectorRef.current.detect(videoRef.current)
+        if (barcodes.length > 0) {
+          const code = barcodes[0].rawValue
+          setSuccessMessage(`Detected: ${code}`)
+          stopCamera()
+          lookupBarcode(code)
+          return
+        }
+      } catch (err) {
+        // Ignore per-frame detection errors
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(scanFrame)
+  }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (state === "scanning" && hasBarcodeDetector) {
+      rafRef.current = requestAnimationFrame(scanFrame)
+    }
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [state, hasBarcodeDetector, scanFrame])
 
   const startCamera = async () => {
+    setState("requesting")
+    setErrorMessage(null)
+    setSuccessMessage(null)
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorMessage("Camera API is not supported in this browser. Please use Chrome or Edge on a secure (HTTPS/localhost) origin.")
+      setState("error")
+      return
+    }
+
     try {
-      setError(null)
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }, // Use back camera if available
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
       })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        setIsScanning(true)
+      setState("scanning") // video useEffect will attach the stream
+    } catch (err: any) {
+      console.error("Camera access error:", err)
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setErrorMessage("Camera permission was denied. Please allow camera access in your browser settings and try again.")
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        setErrorMessage("No camera device found on this device.")
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        setErrorMessage("Camera is already in use by another application.")
+      } else if (err.name === "OverconstrainedError") {
+        // Try again without constraints
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+          streamRef.current = stream
+          setState("scanning")
+          return
+        } catch {
+          setErrorMessage("Could not access camera with the required constraints.")
+        }
+      } else {
+        setErrorMessage(`Camera error: ${err.message || "Unknown error"}`)
       }
-    } catch (err) {
-      setError("Camera access denied or not available. Please enter barcode manually.")
-      console.error("Camera error:", err)
+      setState("error")
     }
   }
 
   const stopCamera = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
-    setIsScanning(false)
-  }
-
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (manualBarcode.trim()) {
-      handleLookup(manualBarcode.trim())
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
     }
+    setState("idle")
   }
 
-  const handleLookup = async (barcode: string) => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const product = await searchByBarcode(barcode)
-      if (product) {
-        onBarcodeDetected(barcode) // The parent expects just the barcode to trigger the form population
-      } else {
-        setError("Product not found. Please try manual entry.")
-      }
-    } catch (err) {
-      setError("Failed to fetch product data.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Simulate barcode detection (for demo/dev purposes)
-  const simulateBarcodeScan = () => {
-    const demoBarcode = "5449000000996" // Coca Cola
-    handleLookup(demoBarcode)
-  }
-
+  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopCamera()
+    return () => stopCamera()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const lookupBarcode = async (barcode: string) => {
+    setIsLoadingManual(true)
+    setErrorMessage(null)
+    try {
+      const res = await fetch("/api/barcode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ barcode }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        onBarcodeDetected(barcode)
+      } else {
+        setErrorMessage(result.message || "Product not found.")
+      }
+    } catch {
+      setErrorMessage("Network error during barcode lookup.")
+    } finally {
+      setIsLoadingManual(false)
     }
-  }, [])
+  }
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const code = manualBarcode.trim()
+    if (!code) return
+    lookupBarcode(code)
+  }
+
+  const isScanning = state === "scanning"
+  const isRequesting = state === "requesting"
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Scan className="w-5 h-5" />
-              Barcode Scanner
-            </CardTitle>
-            <CardDescription>Scan or enter a barcode to quickly add food items</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Camera Scanner */}
-        <div className="space-y-3">
-          <Label>Camera Scanner</Label>
-          {!isScanning ? (
-            <div className="text-center space-y-3">
-              <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center">
-                <Camera className="w-12 h-12 text-muted-foreground" />
-              </div>
-              <Button onClick={startCamera} className="w-full">
-                <Camera className="w-4 h-4 mr-2" />
-                Start Camera
-              </Button>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+    <div className="w-full space-y-4 p-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Scan className="w-4 h-4" />
+        Barcode Scanner
+      </div>
+
+      {/* Camera View — always rendered, visibility controlled by state */}
+      <div className="space-y-3">
+        <div className="relative w-full rounded-lg overflow-hidden bg-zinc-900" style={{ height: "200px" }}>
+          {/* Video element is always in the DOM so srcObject assignment works */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+            style={{ display: isScanning ? "block" : "none" }}
+          />
+          {/* Overlay when not scanning */}
+          {!isScanning && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400">
+              {isRequesting ? (
+                <>
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <p className="text-xs">Requesting camera access…</p>
+                </>
+              ) : (
+                <>
+                  <Camera className="w-10 h-10" />
+                  <p className="text-xs">Camera preview will appear here</p>
+                </>
+              )}
             </div>
-          ) : (
-            <div className="space-y-3">
-              <video ref={videoRef} autoPlay playsInline className="w-full h-48 bg-black rounded-lg object-cover" />
-              <div className="flex gap-2">
-                <Button onClick={simulateBarcodeScan} className="flex-1">
-                  Simulate Scan
-                </Button>
-                <Button variant="outline" onClick={stopCamera} className="btn-cancel-red">
-                  Stop Camera
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Point camera at barcode or click "Simulate Scan" for demo
-              </p>
+          )}
+          {/* Scan overlay when active */}
+          {isScanning && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-48 h-32 border-2 border-secondary rounded-md opacity-70" />
             </div>
           )}
         </div>
 
-        {/* Manual Entry */}
-        <div className="border-t pt-4">
-          <form onSubmit={handleManualSubmit} className="space-y-3">
-            <Label htmlFor="manual-barcode">Manual Entry</Label>
-            <div className="flex gap-2">
-              <Input
-                id="manual-barcode"
-                placeholder="Enter barcode number"
-                value={manualBarcode}
-                onChange={(e) => setManualBarcode(e.target.value)}
-              />
-              <Button type="submit" disabled={!manualBarcode.trim() || isLoading}>
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lookup"}
-              </Button>
-            </div>
-          </form>
+        {/* Status messages */}
+        {successMessage && (
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <CheckCircle2 className="w-4 h-4" />
+            {successMessage}
+          </div>
+        )}
+        {(state === "error" || errorMessage) && errorMessage && (
+          <div className="flex items-start gap-2 text-sm text-red-600">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+        {isScanning && !hasBarcodeDetector && (
+          <p className="text-xs text-amber-600 text-center">
+            Auto-detection not supported in this browser. Use manual entry below.
+          </p>
+        )}
+        {isScanning && hasBarcodeDetector && (
+          <p className="text-xs text-zinc-400 text-center">
+            Point camera at a barcode — detecting automatically…
+          </p>
+        )}
+
+        {/* Camera controls */}
+        <div className="flex gap-2">
+          {!isScanning ? (
+            <Button
+              onClick={startCamera}
+              disabled={isRequesting}
+              className="w-full"
+              variant="secondary"
+            >
+              {isRequesting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4 mr-2" />
+              )}
+              {isRequesting ? "Starting…" : "Open Camera"}
+            </Button>
+          ) : (
+            <Button onClick={stopCamera} variant="outline" className="w-full btn-cancel-red">
+              Stop Camera
+            </Button>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Manual Entry */}
+      <div className="border-t pt-4">
+        <form onSubmit={handleManualSubmit} className="space-y-3">
+          <Label htmlFor="manual-barcode">Enter Barcode Manually</Label>
+          <div className="flex gap-2">
+            <Input
+              id="manual-barcode"
+              placeholder="e.g., 3017620425035"
+              value={manualBarcode}
+              onChange={(e) => setManualBarcode(e.target.value)}
+              type="text"
+              inputMode="numeric"
+            />
+            <Button type="submit" disabled={!manualBarcode.trim() || isLoadingManual} variant="secondary">
+              {isLoadingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lookup"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }

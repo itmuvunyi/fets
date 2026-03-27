@@ -10,27 +10,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FOOD_CATEGORIES, UNITS, type FoodItem } from "@/lib/food-items"
-import { createFoodItem, searchFoodItems, searchByBarcode, modifyFoodItem } from "@/app/actions/food"
+import { createFoodItem, modifyFoodItem } from "@/app/actions/food"
 import { useAuth } from "@/lib/auth"
 import { Plus, X, Loader2, Scan, Calendar as CalendarIcon, ChevronDown } from "lucide-react"
-import { useDebounce } from "@/hooks/use-debounce"
 import { BarcodeScanner } from "@/components/barcode/barcode-scanner"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+
 
 interface AddFoodFormProps {
   onSuccess: () => void
   onCancel: () => void
   initialBarcode?: string // Added optional barcode prop
   editingItem?: FoodItem // Added optional editingItem prop
+  title?: string // Custom title
+  submitText?: string // Custom submit text
+  hideBarcode?: boolean // Hide barcode field
 }
 
-export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }: AddFoodFormProps) {
+export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, title, submitText, hideBarcode }: AddFoodFormProps) {
   const { user } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const [formData, setFormData] = useState<FoodItem | {
     name: string;
     category: string;
@@ -43,52 +48,40 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
   }>(
     editingItem
       ? {
-          ...editingItem,
-          expirationDate: editingItem.expirationDate ? new Date(editingItem.expirationDate).toISOString().split("T")[0] : "",
-          purchaseDate: editingItem.purchaseDate ? new Date(editingItem.purchaseDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-          barcode: initialBarcode || editingItem.barcode || "",
-        }
+        ...editingItem,
+        expirationDate: editingItem.expirationDate ? new Date(editingItem.expirationDate).toISOString().split("T")[0] : "",
+        purchaseDate: editingItem.purchaseDate ? new Date(editingItem.purchaseDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        barcode: initialBarcode || editingItem.barcode || "",
+      }
       : {
-          name: "",
-          category: "",
-          expirationDate: "", // Clear default
-          purchaseDate: "",   // Clear default
-          quantity: 1,
-          unit: "pieces",
-          notes: "",
-          barcode: initialBarcode || "",
-        }
+        name: "",
+        category: "",
+        expirationDate: "",
+        purchaseDate: new Date().toISOString().split("T")[0],
+        quantity: 1,
+        unit: "pieces",
+        notes: "",
+        barcode: initialBarcode || "",
+      }
   )
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [expirationOpen, setExpirationOpen] = useState(false)
-  
-  const debouncedName = useDebounce(formData.name, 500)
 
-  useEffect(() => {
-    if (debouncedName && debouncedName.length >= 2 && !isSubmitting) {
-      handleLiveSearch()
-    } else {
-      setSuggestions([])
-      setShowSuggestions(false)
-    }
-  }, [debouncedName])
-
-  const handleLiveSearch = async () => {
-    setIsSearching(true)
-    const results = await searchFoodItems(debouncedName)
-    setSuggestions(results)
-    setShowSuggestions(results.length > 0)
-    setIsSearching(false)
-  }
 
   const handleBarcodeDetected = async (barcode: string) => {
     setIsSearching(true)
     try {
-      const product = await searchByBarcode(barcode)
-      if (product) {
+      const response = await fetch("/api/barcode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ barcode }),
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        const product = result.data
         setFormData(prev => ({
           ...prev,
           name: product.name,
@@ -96,24 +89,14 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
           category: product.category || prev.category,
           barcode: barcode
         }))
+      } else {
+        console.warn("Product not found or API error:", result.message)
       }
     } catch (error) {
       console.error("Barcode scan processing failed:", error)
     } finally {
       setIsSearching(false)
-      setShowSuggestions(false)
     }
-  }
-
-  const handleSelectSuggestion = (s: any) => {
-    setFormData(prev => ({
-      ...prev,
-      name: s.name,
-      notes: s.brand || prev.notes,
-      category: s.category || prev.category
-    }))
-    setSuggestions([])
-    setShowSuggestions(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,26 +123,27 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
   }
 
   return (
-    <Card className="w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl border-primary/10">
+    <Card className="w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl border-secondary/20">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-xl">Add Food Item</CardTitle>
-            <CardDescription>Track a new food item and its expiration date</CardDescription>
+            <CardTitle className="text-xl">{title || (editingItem ? "Edit Food Item" : "Add Food Item")}</CardTitle>
+            <CardDescription>{editingItem ? "Update your food item details" : "Track a new food item and its expiration date"}</CardDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onCancel} className="h-8 w-8 p-0 rounded-full hover:bg-primary/10 hover:text-primary">
-            <X className="h-4 w-4" />
-          </Button>
+          <DialogClose className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground ml-auto rounded-full p-1.5 opacity-70 transition-all hover:opacity-100 hover:bg-secondary/10 hover:text-secondary focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+            <X />
+            <span className="sr-only">Close</span>
+          </DialogClose>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/20">
+      <CardContent className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-secondary/30">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2 relative">
             <div className="flex items-center justify-between">
               <Label htmlFor="name">Food Name</Label>
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="default" size="sm" className="h-7 px-2 text-xs gap-1 shadow-sm">
+                  <Button variant="secondary" size="sm" className="h-7 px-2 text-xs gap-1 shadow-sm">
                     <Scan className="h-3 w-3" />
                     Scan Barcode
                   </Button>
@@ -167,11 +151,11 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
                 <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-none">
                   <DialogTitle className="sr-only">Barcode Scanner</DialogTitle>
                   <DialogDescription className="sr-only">Point your camera at a barcode to scan.</DialogDescription>
-                  <BarcodeScanner 
+                  <BarcodeScanner
                     onBarcodeDetected={(barcode) => {
                       handleBarcodeDetected(barcode)
-                    }} 
-                    onClose={() => {}} 
+                    }}
+                    onClose={() => { }}
                   />
                 </DialogContent>
               </Dialog>
@@ -191,31 +175,10 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
                 </div>
               )}
             </div>
-            
-            {showSuggestions && (
-              <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-xl border overflow-hidden max-h-60 overflow-y-auto">
-                {suggestions.map((s, idx) => (
-                  <div 
-                    key={idx} 
-                    className="p-3 hover:bg-amber-50 cursor-pointer flex items-center gap-3 border-b last:border-0 transition-colors"
-                    onClick={() => handleSelectSuggestion(s)}
-                  >
-                    {s.image ? (
-                      <img src={s.image} alt={s.name} className="w-10 h-10 object-contain rounded bg-gray-50" />
-                    ) : (
-                      <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400">NO IMG</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate leading-tight">{s.name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider">{s.brand}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+
           </div>
 
-          {formData.barcode && (
+          {!hideBarcode && formData.barcode && (
             <div className="space-y-2">
               <Label htmlFor="barcode">Barcode</Label>
               <Input
@@ -285,10 +248,10 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
                   <Button
                     variant="outline"
                     data-empty={!formData.purchaseDate}
-                    className="w-full justify-between text-left font-normal border-input hover:bg-secondary hover:text-secondary-foreground transition-all px-3 data-[empty=true]:bg-primary data-[empty=true]:text-white data-[empty=true]:border-primary"
+                    className="w-full justify-between text-left font-normal border-input hover:bg-secondary hover:text-secondary-foreground transition-all px-3 data-[empty=true]:bg-secondary data-[empty=true]:text-secondary-foreground data-[empty=true]:border-secondary/20"
                   >
-                    {formData.purchaseDate ? format(new Date(formData.purchaseDate), "yyyy-MM-dd") : "Select date"}
-                    <ChevronDown className={cn("h-4 w-4 opacity-50", !formData.purchaseDate && "text-white opacity-100")} />
+                    {formData.purchaseDate ? format(new Date(formData.purchaseDate), "dd/MM/yyyy") : "Select date"}
+                    <ChevronDown className={cn("h-4 w-4 opacity-50", !formData.purchaseDate && "text-secondary-foreground/50 opacity-100")} />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-black border-zinc-800" align="start">
@@ -308,6 +271,8 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
                       return date > today;
                     }}
                     captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 10, 0)}
+                    endMonth={new Date(new Date().getFullYear() + 10, 11)}
                     defaultMonth={formData.purchaseDate ? new Date(formData.purchaseDate) : undefined}
                     initialFocus
                     className="p-3 bg-black text-white"
@@ -322,10 +287,10 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
                   <Button
                     variant="outline"
                     data-empty={!formData.expirationDate}
-                    className="w-full justify-between text-left font-normal border-input hover:bg-secondary hover:text-secondary-foreground transition-all px-3 data-[empty=true]:bg-primary data-[empty=true]:text-white data-[empty=true]:border-primary"
+                    className="w-full justify-between text-left font-normal border-input hover:bg-secondary hover:text-secondary-foreground transition-all px-3 data-[empty=true]:bg-secondary data-[empty=true]:text-secondary-foreground data-[empty=true]:border-secondary/20"
                   >
-                    {formData.expirationDate ? format(new Date(formData.expirationDate), "yyyy-MM-dd") : "Select date"}
-                    <ChevronDown className={cn("h-4 w-4 opacity-50", !formData.expirationDate && "text-white opacity-100")} />
+                    {formData.expirationDate ? format(new Date(formData.expirationDate), "dd/MM/yyyy") : "Select date"}
+                    <ChevronDown className={cn("h-4 w-4 opacity-50", !formData.expirationDate && "text-secondary-foreground/50 opacity-100")} />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-black border-zinc-800" align="start">
@@ -349,6 +314,8 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
                       return date < minDate;
                     }}
                     captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 5, 0)}
+                    endMonth={new Date(new Date().getFullYear() + 15, 11)}
                     defaultMonth={formData.expirationDate ? new Date(formData.expirationDate) : (formData.purchaseDate ? new Date(formData.purchaseDate) : undefined)}
                     initialFocus
                     className="p-3 bg-black text-white"
@@ -373,9 +340,9 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode }
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1 btn-cancel-red">
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-              {"Add Food"}
+            <Button type="submit" variant="secondary" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : (!editingItem ? <Plus className="w-4 h-4 mr-2" /> : null)}
+              {submitText || (editingItem ? "Update Food" : "Add Food")}
             </Button>
           </div>
         </form>

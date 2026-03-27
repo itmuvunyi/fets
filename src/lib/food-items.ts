@@ -63,13 +63,13 @@ export const UNITS = [
   "packages",
 ]
 
-export function calculateStatus(expirationDate: string): FoodItem["status"] {
+export function calculateStatus(expirationDate: string, alertThreshold = 3): FoodItem["status"] {
   const today = new Date()
   const expiry = new Date(expirationDate)
   const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
   if (daysUntilExpiry < 0) return "expired"
-  if (daysUntilExpiry <= 3) return "expiring-soon"
+  if (daysUntilExpiry <= alertThreshold) return "expiring-soon"
   return "fresh"
 }
 
@@ -77,51 +77,4 @@ export function getDaysUntilExpiry(expirationDate: string): number {
   const today = new Date()
   const expiry = new Date(expirationDate)
   return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-// Mock data storage functions (in real app, these would be API calls)
-export function getFoodItems(userId: string): FoodItem[] {
-  const stored = localStorage.getItem(`food-items-${userId}`)
-  return stored ? JSON.parse(stored) : []
-}
-
-export function saveFoodItems(userId: string, items: FoodItem[]): void {
-  localStorage.setItem(`food-items-${userId}`, JSON.stringify(items))
-}
-
-export function addFoodItem(userId: string, item: Omit<FoodItem, "id" | "status" | "userId">): FoodItem {
-  const items = getFoodItems(userId)
-  const newItem: FoodItem = {
-    ...item,
-    id: Date.now().toString(),
-    status: calculateStatus(item.expirationDate),
-    userId,
-  }
-  items.push(newItem)
-  saveFoodItems(userId, items)
-  return newItem
-}
-
-export function updateFoodItem(userId: string, itemId: string, updates: Partial<FoodItem>): FoodItem | null {
-  const items = getFoodItems(userId)
-  const index = items.findIndex((item) => item.id === itemId)
-  if (index === -1) return null
-
-  const updatedItem = {
-    ...items[index],
-    ...updates,
-    status: updates.expirationDate ? calculateStatus(updates.expirationDate) : items[index].status,
-  }
-  items[index] = updatedItem
-  saveFoodItems(userId, items)
-  return updatedItem
-}
-
-export function deleteFoodItem(userId: string, itemId: string): boolean {
-  const items = getFoodItems(userId)
-  const filteredItems = items.filter((item) => item.id !== itemId)
-  if (filteredItems.length === items.length) return false
-
-  saveFoodItems(userId, filteredItems)
-  return true
 }

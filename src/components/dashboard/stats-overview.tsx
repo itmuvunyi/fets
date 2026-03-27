@@ -30,17 +30,17 @@ export function StatsOverview({ refreshTrigger }: StatsOverviewProps) {
         const items = await fetchFoodItems(user.id)
         if (Array.isArray(items)) {
           const expiringSoonItems = items.filter((item) => item.status === "expiring-soon")
-          
+
           // Find nearest expiry within 24h
           let nearest: { diff: number; hours: number; minutes: number } | null = null;
           const now = new Date().getTime();
-          
+
           items.forEach(item => {
             const expiry = new Date(item.expirationDate).getTime();
             const diff = expiry - now;
             if (diff > 0 && diff <= 24 * 60 * 60 * 1000) {
               if (!nearest || diff < nearest.diff) {
-                nearest = { 
+                nearest = {
                   diff,
                   hours: Math.floor(diff / (1000 * 60 * 60)),
                   minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
@@ -97,7 +97,7 @@ export function StatsOverview({ refreshTrigger }: StatsOverviewProps) {
     {
       title: t.expiringSoon,
       value: stats.expiringSoon,
-      description: nextExpiry 
+      description: nextExpiry
         ? `${t.nextIn} ${nextExpiry.hours}h ${nextExpiry.minutes}m`
         : t.useWithinDays,
       icon: Clock,

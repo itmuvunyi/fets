@@ -62,7 +62,7 @@ export async function createFoodItem(userId: string, item: Omit<FoodItem, "id" |
 
 export async function modifyFoodItem(userId: string, itemId: string, updates: Partial<FoodItem>): Promise<FoodItem | null> {
   const dataToUpdate: any = { ...updates }
-  
+
   if (updates.expirationDate) {
     dataToUpdate.expirationDate = new Date(updates.expirationDate)
     dataToUpdate.status = calculateStatus(updates.expirationDate)
@@ -110,28 +110,6 @@ export async function removeFoodItem(userId: string, itemId: string): Promise<bo
   }
 }
 
-export async function searchFoodItems(query: string) {
-  if (!query || query.length < 2) return []
-
-  try {
-    const response = await fetch(
-      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-        query
-      )}&search_simple=1&action=process&json=1&page_size=10`
-    )
-    const data = await response.json()
-    
-    return (data.products || []).map((p: any) => ({
-      name: p.product_name || p.generic_name || "Unknown Product",
-      brand: p.brands || "Unknown Brand",
-      image: p.image_small_url || p.image_thumb_url || null,
-      category: p.categories_tags?.[0]?.replace("en:", "") || "other",
-    }))
-  } catch (error) {
-    console.error("OpenFoodFacts API error:", error)
-    return []
-  }
-}
 
 export async function searchByBarcode(barcode: string) {
   if (!barcode) return null

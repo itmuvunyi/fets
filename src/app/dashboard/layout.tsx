@@ -69,7 +69,10 @@ export default function DashboardLayout({
 
       {/* Global Add Food Modal */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-none bg-transparent shadow-none">
+        <DialogContent 
+          className="max-w-md p-0 overflow-hidden border-none bg-transparent shadow-none"
+          showCloseButton={false}
+        >
           <DialogTitle className="sr-only">Add Food Item</DialogTitle>
           <DialogDescription className="sr-only">
             Enter the details of your food item to track it.

@@ -1,27 +1,28 @@
 "use client"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAuth } from "@/lib/auth"
 import { Globe } from "lucide-react"
+import { useAuth } from "@/lib/auth"
+import { updateUserSettings } from "@/app/actions/user-settings"
 import type { Language } from "@/lib/i18n"
 
 export function LanguageSwitcher() {
   const { user } = useAuth()
+  const language = user?.language || (typeof window !== "undefined" ? localStorage.getItem("food-tracker-language") : "en") as Language
 
-  const handleLanguageChange = (language: Language) => {
+  const handleLanguageChange = async (newLanguage: Language) => {
     if (user) {
-      // Update user language preference
-      localStorage.setItem("food-tracker-language", language)
-      // Force page reload to apply language changes
-      window.location.reload()
+      await updateUserSettings(user.id, { language: newLanguage })
     }
+    localStorage.setItem("food-tracker-language", newLanguage)
+    // Reload to apply i18n changes across the app
+    window.location.reload()
   }
-
-  if (!user) return null
 
   return (
     <div className="flex items-center gap-2">
       <Globe className="h-4 w-4 text-muted-foreground" />
-      <Select value={user.language} onValueChange={handleLanguageChange}>
+      <Select value={language} onValueChange={handleLanguageChange}>
         <SelectTrigger className="w-32">
           <SelectValue />
         </SelectTrigger>
