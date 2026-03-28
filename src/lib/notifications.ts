@@ -54,6 +54,10 @@ export function deleteNotification(userId: string, notificationId: string): void
   saveNotifications(userId, filtered)
 }
 
+export function clearAllNotifications(userId: string): void {
+  localStorage.removeItem(`notifications-${userId}`)
+}
+
 export function getUnreadCount(userId: string): number {
   const notifications = getNotifications(userId)
   return notifications.filter((n) => !n.read).length

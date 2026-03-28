@@ -1,15 +1,16 @@
 "use server"
 
 import { db } from "@/server/db"
+import nodemailer from "nodemailer"
 
-/**
- * Sends an expiration reminder email to the user.
- * Note: In a production app, you'd use a service like Resend or SendGrid.
- * To use Resend:
- * 1. npm install resend
- * 2. Add RESEND_API_KEY to .env
- * 3. Uncomment the Resend block below.
- */
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
+
 export async function sendExpirationEmail(userId: string, itemId: string) {
   try {
     const user = await db.user.findUnique({
@@ -22,21 +23,23 @@ export async function sendExpirationEmail(userId: string, itemId: string) {
 
     if (!user || !item) return false
 
-    console.log(`[EMAIL SYSTEM] Preparing email for ${user.email}`)
-    console.log(`[EMAIL SYSTEM] Subject: Action Required: ${item.name} expires in 1 day!`)
-    console.log(`[EMAIL SYSTEM] Body: Hello ${user.name || "User"}, your food item "${item.name}" will expire in 24 hours. Please use it soon to avoid waste!`)
+    const isExpired = new Date(item.expirationDate) <= new Date()
+    const subject = isExpired 
+      ? `🚨 Urgent: ${item.name} has EXPIRED!` 
+      : `⚠️ Reminder: ${item.name} expires in 3 days!`
+    
+    const message = isExpired
+      ? `Hello ${user.name || "User"},\n\nYour food item "${item.name}" has officially expired. Please check your inventory and remove it to maintain food safety.\n\nBest regards,\nFETS Team`
+      : `Hello ${user.name || "User"},\n\nYour food item "${item.name}" is reaching its expiration date in 3 days. Please try to use it soon to avoid waste!\n\nBest regards,\nFETS Team`
 
-    // Implementation example with Resend:
-    /*
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: 'FETS Reminders <onboarding@resend.dev>',
+    await transporter.sendMail({
+      from: `"FETS Reminders" <${process.env.SMTP_USER}>`,
       to: user.email,
-      subject: `Action Required: ${item.name} expires in 1 day!`,
-      text: `Hello ${user.name || "User"}, your food item "${item.name}" will expire in 24 hours. Please use it soon to avoid waste!`,
-    });
-    */
+      subject: subject,
+      text: message,
+    })
 
+    console.log(`[EMAIL SENT] Notification for ${item.name} sent to ${user.email}`)
     return true
   } catch (error) {
     console.error("Failed to send expiration email:", error)

@@ -47,7 +47,7 @@ export function DashboardHeader() {
             <div className="flex items-center gap-2 mr-2 bg-muted/50 px-3 py-1.5 rounded-full border border-primary/10">
               <BellOff className="w-4 h-4 text-muted-foreground" />
               <Label htmlFor="mute-notifications" className="text-xs cursor-pointer">
-                Mute Today
+                {t.muteToday}
               </Label>
               <Switch 
                 id="mute-notifications"
@@ -65,15 +65,15 @@ export function DashboardHeader() {
                   
                   if (result.success) {
                     addToast({
-                      title: checked ? "Notifications Muted" : "Notifications Unmuted",
-                      description: checked ? "You won't receive alerts for the rest of today." : "Alerts are now active.",
+                      title: checked ? t.notificationsMuted : t.notificationsUnmuted,
+                      description: checked ? t.muteDescription : t.unmuteDescription,
                       type: "success"
                     });
                     // Force refresh user state if possible or let session handle it
                     window.location.reload(); // Simple way to sync for now since state is in AuthProvider session fetch
                   } else {
                     addToast({
-                      title: "Update Failed",
+                      title: t.error,
                       description: "Could not update notification settings.",
                       type: "error"
                     });
@@ -84,7 +84,7 @@ export function DashboardHeader() {
 
             <LanguageSwitcher />
             <NotificationBell />
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm font-bold">
               <User className="w-4 h-4" />
               <span>
                 {t.welcome}, {user?.name?.split(" ")[0]}
@@ -96,28 +96,28 @@ export function DashboardHeader() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="hover:bg-amber-600 hover:text-white transition-colors"
+                  className="hover:bg-amber-600 hover:text-white transition-colors rounded-xl"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  {t.signOut === "Sign Out" ? "Log Out" : t.signOut}
+                  {t.signOut}
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="font-mono">
                 <AlertDialogHeader>
                   <AlertDialogTitle>
-                    Are you sure you want to log out?
+                    {t.areYouSureLogout}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    You will be redirected to the home page.
+                    {t.logoutDescription}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel className="rounded-xl mt-0">Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={logout}
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl"
                   >
-                    Log Out
+                    {t.signOut}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

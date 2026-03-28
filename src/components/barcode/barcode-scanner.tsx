@@ -18,7 +18,6 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
   const [state, setState] = useState<ScannerState>("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [manualBarcode, setManualBarcode] = useState("")
-  const [isLoadingManual, setIsLoadingManual] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [hasBarcodeDetector, setHasBarcodeDetector] = useState(false)
 
@@ -143,25 +142,8 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lookupBarcode = async (barcode: string) => {
-    setIsLoadingManual(true)
-    setErrorMessage(null)
-    try {
-      const res = await fetch("/api/barcode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ barcode }),
-      })
-      const result = await res.json()
-      if (result.success) {
-        onBarcodeDetected(barcode)
-      } else {
-        setErrorMessage(result.message || "Product not found.")
-      }
-    } catch {
-      setErrorMessage("Network error during barcode lookup.")
-    } finally {
-      setIsLoadingManual(false)
-    }
+    if (!barcode) return
+    onBarcodeDetected(barcode)
   }
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -182,10 +164,9 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
         Barcode Scanner
       </div>
 
-      {/* Camera View — always rendered, visibility controlled by state */}
+      {/* Camera View */}
       <div className="space-y-3">
         <div className="relative w-full rounded-lg overflow-hidden bg-zinc-900" style={{ height: "200px" }}>
-          {/* Video element is always in the DOM so srcObject assignment works */}
           <video
             ref={videoRef}
             autoPlay
@@ -194,7 +175,6 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
             className="w-full h-full object-cover"
             style={{ display: isScanning ? "block" : "none" }}
           />
-          {/* Overlay when not scanning */}
           {!isScanning && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-zinc-400">
               {isRequesting ? (
@@ -210,7 +190,6 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
               )}
             </div>
           )}
-          {/* Scan overlay when active */}
           {isScanning && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-48 h-32 border-2 border-secondary rounded-md opacity-70" />
@@ -266,21 +245,21 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
         </div>
       </div>
 
-      {/* Manual Entry */}
+      {/* Manual Entry — Under camera controls */}
       <div className="border-t pt-4">
         <form onSubmit={handleManualSubmit} className="space-y-3">
-          <Label htmlFor="manual-barcode">Enter Barcode Manually</Label>
+          <Label htmlFor="manual-barcode">Lookup Manually</Label>
           <div className="flex gap-2">
             <Input
               id="manual-barcode"
               placeholder="e.g., 3017620425035"
               value={manualBarcode}
-              onChange={(e) => setManualBarcode(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManualBarcode(e.target.value)}
               type="text"
               inputMode="numeric"
             />
-            <Button type="submit" disabled={!manualBarcode.trim() || isLoadingManual} variant="secondary">
-              {isLoadingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lookup"}
+            <Button type="submit" disabled={!manualBarcode.trim()} variant="secondary">
+              Lookup
             </Button>
           </div>
         </form>
@@ -288,3 +267,4 @@ export function BarcodeScanner({ onBarcodeDetected }: BarcodeScannerProps) {
     </div>
   )
 }
+

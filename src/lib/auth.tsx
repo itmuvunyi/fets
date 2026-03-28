@@ -13,6 +13,7 @@ interface User {
   language: "en" | "rw"
   alertThresholdDays?: number
   muteNotificationsUntil?: string | null
+  image?: string
 }
 
 interface AuthContextType {

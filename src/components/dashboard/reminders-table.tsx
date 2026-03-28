@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { type FoodItem } from "@/lib/food-items"
+import { type FoodItem, getDaysUntilExpiry } from "@/lib/food-items"
 import { fetchFoodItems, removeFoodItem } from "@/app/actions/food"
 import { useAuth } from "@/lib/auth"
 import { Edit, Trash2, Calendar, MoreHorizontal, AlertTriangle } from "lucide-react"
@@ -44,8 +44,8 @@ export function RemindersTable() {
     setIsLoading(true)
     try {
       const allItems = await fetchFoodItems(user.id)
-      // Filter for items expiring soon
-      const expiringSoon = allItems.filter(item => item.status === "expiring-soon")
+      // Filter for items expiring soon, strictly excluding already expired (< 0 days)
+      const expiringSoon = allItems.filter(item => item.status === "expiring-soon" && getDaysUntilExpiry(item.expirationDate) >= 0)
       setItems(expiringSoon)
     } catch (error) {
       console.error("Failed to load reminders:", error)

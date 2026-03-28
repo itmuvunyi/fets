@@ -178,6 +178,24 @@ export interface Translations {
   noReminders: string
   noRemindersDescription: string
   backToDashboard: string
+  muteToday: string
+  notificationsMuted: string
+  notificationsUnmuted: string
+  muteDescription: string
+  unmuteDescription: string
+  areYouSureLogout: string
+  logoutDescription: string
+  dashboard: string
+  welcomeBackName: string
+  trackManageNeverWaste: string
+  loadingInventory: string
+  smartAlertSuggestion: string
+  dairySuggestionText: string
+  applyNow: string
+  settingsUpdatedToast: string
+  alertThresholdSetTo: string
+  confirmClearAll: string
+  clearAllDescription: string
 }
 
 export const translations: Record<Language, Translations> = {
@@ -360,6 +378,24 @@ export const translations: Record<Language, Translations> = {
     noReminders: "No urgent reminders",
     noRemindersDescription: "All your food items are fresh! Check back later.",
     backToDashboard: "Back to Dashboard",
+    muteToday: "Mute Today",
+    notificationsMuted: "Notifications Muted",
+    notificationsUnmuted: "Notifications Unmuted",
+    muteDescription: "You won't receive alerts for the rest of today.",
+    unmuteDescription: "Alerts are now active.",
+    areYouSureLogout: "Are you sure you want to log out?",
+    logoutDescription: "You will be redirected to the home page.",
+    dashboard: "Dashboard",
+    welcomeBackName: "Welcome back,",
+    trackManageNeverWaste: "Track, manage, and never waste food again.",
+    loadingInventory: "Loading your inventory...",
+    smartAlertSuggestion: "Smart Alert Suggestion",
+    dairySuggestionText: "You store mostly dairy products. We suggest setting your expiry alerts to 2 days for better freshness tracking.",
+    applyNow: "Apply Now",
+    settingsUpdatedToast: "Settings Updated",
+    alertThresholdSetTo: "Your alert threshold is now set to 2 days.",
+    confirmClearAll: "Clear All Notifications?",
+    clearAllDescription: "Are you sure you want to clear all notifications? This cannot be undone.",
   },
 
   rw: {
@@ -541,6 +577,24 @@ export const translations: Record<Language, Translations> = {
     noReminders: "Nta byibutso byihutirwa",
     noRemindersDescription: "Ibiryo byose ni bishya! Ongera urebe nyuma.",
     backToDashboard: "Subira ku rubuga",
+    muteToday: "Guhagarika uyu munsi",
+    notificationsMuted: "Ubutumwa bwahagaritswe",
+    notificationsUnmuted: "Ubutumwa bwakomeje",
+    muteDescription: "Ntabwo ubona ubutumwa kugeza uyu munsi urangiye.",
+    unmuteDescription: "Ubutumwa ubu burakora.",
+    areYouSureLogout: "Uraze neza ko ushaka gusohoka?",
+    logoutDescription: "Uraroherezwa ku rupapuro rw'itangiriro.",
+    dashboard: "Incamake",
+    welcomeBackName: "Murakaza neza,",
+    trackManageNeverWaste: "Kurikirana, amashyirahamwe n'izindi ziryo ntizongere kwangirika.",
+    loadingInventory: "Tutarimo gushaka ibiryo byanyu...",
+    smartAlertSuggestion: "Inama y'Iburira Ryatanzwe",
+    dairySuggestionText: "Ubitsa cyane ibikomoka ku mata. Turakubwira ko washyira iburira ryawe ku minsi 2 kugira ngo ukurikirane ubuziranenge bwabyo neza.",
+    applyNow: "Koresha ubu",
+    settingsUpdatedToast: "Amagenamiterere yavuguruwe",
+    alertThresholdSetTo: "Iburira ryawe rishyize ku minsi 2.",
+    confirmClearAll: "Siba ubutumwa bwose?",
+    clearAllDescription: "Uraze neza ko ushaka gusiba ubutumwa bwose? Ibi ntibishobora guhinduka.",
   },
 }
 

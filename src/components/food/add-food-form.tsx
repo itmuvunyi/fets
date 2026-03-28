@@ -21,6 +21,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
+import { addToast } from "@/lib/toast"
+import { useTranslation } from "@/lib/i18n"
 
 interface AddFoodFormProps {
   onSuccess: () => void
@@ -34,6 +36,7 @@ interface AddFoodFormProps {
 
 export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, title, submitText, hideBarcode }: AddFoodFormProps) {
   const { user } = useAuth()
+  const t = useTranslation(user?.language)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [formData, setFormData] = useState<FoodItem | {
@@ -45,6 +48,7 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
     unit: string;
     notes: string;
     barcode: string;
+    expirationTime: string;
   }>(
     editingItem
       ? {
@@ -52,6 +56,7 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
         expirationDate: editingItem.expirationDate ? new Date(editingItem.expirationDate).toISOString().split("T")[0] : "",
         purchaseDate: editingItem.purchaseDate ? new Date(editingItem.purchaseDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
         barcode: initialBarcode || editingItem.barcode || "",
+        expirationTime: editingItem.expirationTime || "12:00",
       }
       : {
         name: "",
@@ -62,16 +67,24 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
         unit: "pieces",
         notes: "",
         barcode: initialBarcode || "",
+        expirationTime: "12:00",
       }
   )
 
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [expirationOpen, setExpirationOpen] = useState(false)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
 
 
   const handleBarcodeDetected = async (barcode: string) => {
+    setIsScannerOpen(false) // Close scanner dialog immediately
     setIsSearching(true)
+    setFormData(prev => ({ ...prev, barcode })) // Store barcode even if hidden
+    
     try {
+      // 5-second artificial delay for "detecting" feedback
+      await new Promise(resolve => setTimeout(resolve, 5000))
+
       const response = await fetch("/api/barcode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,13 +100,14 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
           name: product.name,
           notes: product.brand || prev.notes,
           category: product.category || prev.category,
-          barcode: barcode
         }))
+        addToast({ title: "Success", description: `Product "${product.name}" found!`, type: "success" })
       } else {
-        console.warn("Product not found or API error:", result.message)
+        addToast({ title: "Not Found", description: "the item is not available", type: "error" })
       }
     } catch (error) {
       console.error("Barcode scan processing failed:", error)
+      addToast({ title: "Error", description: "An error occurred while searching", type: "error" })
     } finally {
       setIsSearching(false)
     }
@@ -103,16 +117,32 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
     e.preventDefault()
     if (!user) return
 
+    if (!formData.name) {
+      addToast({ title: t?.error || "Error", description: "Food name is required", type: "error" })
+      return
+    }
+    if (!formData.category) {
+      addToast({ title: t?.error || "Error", description: "Category is required", type: "error" })
+      return
+    }
+    if (!formData.expirationDate) {
+      addToast({ title: t?.error || "Error", description: "Expiration date is required", type: "error" })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       if (editingItem) {
         await modifyFoodItem(user.id, editingItem.id, formData as any)
+        addToast({ title: t.success, description: "Food item updated successfully", type: "success" })
       } else {
         await createFoodItem(user.id, formData as any)
+        addToast({ title: t.success, description: "Food item added successfully", type: "success" })
       }
       onSuccess()
     } catch (error) {
       console.error("Failed to save food item:", error)
+      addToast({ title: t.error, description: "Failed to save food item", type: "error" })
     } finally {
       setIsSubmitting(false)
     }
@@ -136,26 +166,24 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
           </DialogClose>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-secondary/30">
+      <CardContent className="flex-1 overflow-y-auto pr-2">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2 relative">
             <div className="flex items-center justify-between">
               <Label htmlFor="name">Food Name</Label>
-              <Dialog>
+              <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="secondary" size="sm" className="h-7 px-2 text-xs gap-1 shadow-sm">
+                  <Button type="button" variant="secondary" size="sm" className="h-7 px-2 text-xs gap-1 shadow-sm">
                     <Scan className="h-3 w-3" />
                     Scan Barcode
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-none">
                   <DialogTitle className="sr-only">Barcode Scanner</DialogTitle>
-                  <DialogDescription className="sr-only">Point your camera at a barcode to scan.</DialogDescription>
+                  <DialogDescription className="sr-only">Point your camera at a barcode to scan or enter it manually.</DialogDescription>
                   <BarcodeScanner
-                    onBarcodeDetected={(barcode) => {
-                      handleBarcodeDetected(barcode)
-                    }}
-                    onClose={() => { }}
+                    onBarcodeDetected={handleBarcodeDetected}
+                    onClose={() => setIsScannerOpen(false)}
                   />
                 </DialogContent>
               </Dialog>
@@ -177,20 +205,6 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
             </div>
 
           </div>
-
-          {!hideBarcode && formData.barcode && (
-            <div className="space-y-2">
-              <Label htmlFor="barcode">Barcode</Label>
-              <Input
-                id="barcode"
-                value={formData.barcode}
-                onChange={(e) => handleChange("barcode", e.target.value)}
-                placeholder="Scanned barcode will appear here"
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-          )}
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
@@ -246,6 +260,7 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
               <Popover open={purchaseOpen} onOpenChange={setPurchaseOpen}>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     variant="outline"
                     data-empty={!formData.purchaseDate}
                     className="w-full justify-between text-left font-normal border-input hover:bg-secondary hover:text-secondary-foreground transition-all px-3 data-[empty=true]:bg-secondary data-[empty=true]:text-secondary-foreground data-[empty=true]:border-secondary/20"
@@ -285,6 +300,7 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
               <Popover open={expirationOpen} onOpenChange={setExpirationOpen}>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     variant="outline"
                     data-empty={!formData.expirationDate}
                     className="w-full justify-between text-left font-normal border-input hover:bg-secondary hover:text-secondary-foreground transition-all px-3 data-[empty=true]:bg-secondary data-[empty=true]:text-secondary-foreground data-[empty=true]:border-secondary/20"
@@ -324,6 +340,53 @@ export function AddFoodForm({ onSuccess, onCancel, editingItem, initialBarcode, 
               </Popover>
             </div>
           </div>
+
+          {editingItem && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Expiration Hour</Label>
+                <Select 
+                  value={formData.expirationTime?.split(":")[0] || "12"} 
+                  onValueChange={(val) => {
+                    const [h, m] = (formData.expirationTime || "12:00").split(":")
+                    setFormData({ ...formData, expirationTime: `${val.padStart(2, '0')}:${m}` })
+                  }}
+                >
+                  <SelectTrigger className="bg-background border-2">
+                    <SelectValue placeholder="Hour" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                        {i.toString().padStart(2, '0')}h
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Expiration Minute</Label>
+                <Select 
+                  value={formData.expirationTime?.split(":")[1] || "00"} 
+                  onValueChange={(val) => {
+                    const [h, m] = (formData.expirationTime || "12:00").split(":")
+                    setFormData({ ...formData, expirationTime: `${h}:${val.padStart(2, '0')}` })
+                  }}
+                >
+                  <SelectTrigger className="bg-background border-2">
+                    <SelectValue placeholder="Min" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {Array.from({ length: 60 }).map((_, i) => (
+                      <SelectItem key={i} value={i.toString().padStart(2, '0')}>
+                        {i.toString().padStart(2, '0')}m
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes (e.g., Brand, Storage)</Label>

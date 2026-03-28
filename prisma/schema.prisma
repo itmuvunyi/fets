@@ -8,16 +8,30 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  name         String?
-  password               String?       // Optional if using Supabase Auth
-  alertThresholdDays     Int           @default(3)
+  id                     String         @id @default(uuid())
+  email                  String         @unique
+  name                   String?
+  password               String? // Optional if using Supabase Auth
+  alertThresholdDays     Int            @default(3)
   muteNotificationsUntil DateTime?
-  createdAt              DateTime      @default(now())
-  foodItems    FoodItem[]
-  reminders    Reminder[]
-  activityLogs ActivityLog[]
+  createdAt              DateTime       @default(now())
+  foodItems              FoodItem[]
+  reminders              Reminder[]
+  activityLogs           ActivityLog[]
+  notifications          Notification[]
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  message    String
+  type       String    @default("info") // info, warning, error, success
+  read       Boolean   @default(false)
+  foodItemId String?
+  foodItem   FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
 }
 
 model Category {
@@ -27,21 +41,22 @@ model Category {
 }
 
 model FoodItem {
-  id             String     @id @default(uuid())
+  id             String         @id @default(uuid())
   name           String
   categoryId     String
-  category       Category   @relation(fields: [categoryId], references: [id])
+  category       Category       @relation(fields: [categoryId], references: [id])
   expirationDate DateTime
-  purchaseDate   DateTime   @default(now())
+  purchaseDate   DateTime       @default(now())
   quantity       Int
-  unit           String     @default("pcs")
-  status         String     @default("fresh")
+  unit           String         @default("pcs")
+  status         String         @default("fresh")
   barcode        String?
   notes          String?
-  createdAt      DateTime   @default(now())
+  createdAt      DateTime       @default(now())
   userId         String
-  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   reminders      Reminder[]
+  notifications  Notification[]
 }
 
 model Reminder {

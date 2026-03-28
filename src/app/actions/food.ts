@@ -17,11 +17,19 @@ function mapToFoodItem(food: any): FoodItem {
     barcode: food.barcode || undefined,
     notes: food.notes || undefined,
     userId: food.userId,
+    createdAt: food.createdAt.toISOString(),
+    expirationTime: food.expirationDate.toTimeString().split(" ")[0].slice(0, 5),
   }
 }
 
+import { evaluateFoodItems } from "./expiration-logic"
+import { sendExpirationEmail } from "./email"
+
 export async function fetchFoodItems(userId: string): Promise<FoodItem[]> {
   try {
+    // Automatically update statuses and notifications before fetching
+    await evaluateFoodItems(userId)
+    
     const foods = await db.foodItem.findMany({
       where: { userId },
       include: { category: true },
@@ -35,7 +43,13 @@ export async function fetchFoodItems(userId: string): Promise<FoodItem[]> {
 }
 
 export async function createFoodItem(userId: string, item: Omit<FoodItem, "id" | "status" | "userId">): Promise<FoodItem> {
-  const status = calculateStatus(item.expirationDate)
+  const expirationDate = new Date(item.expirationDate)
+  if (item.expirationTime) {
+    const [hours, minutes] = item.expirationTime.split(":").map(Number)
+    expirationDate.setHours(hours, minutes)
+  }
+  
+  const status = calculateStatus(expirationDate.toISOString())
   const food = await db.foodItem.create({
     data: {
       name: item.name,
@@ -45,7 +59,7 @@ export async function createFoodItem(userId: string, item: Omit<FoodItem, "id" |
           create: { name: item.category },
         },
       },
-      expirationDate: new Date(item.expirationDate),
+      expirationDate,
       purchaseDate: new Date(item.purchaseDate),
       quantity: item.quantity,
       unit: item.unit,
@@ -55,8 +69,21 @@ export async function createFoodItem(userId: string, item: Omit<FoodItem, "id" |
       user: { connect: { id: userId } },
     },
   })
-  revalidatePath("/dashboard")
-  revalidatePath("/reminders")
+
+  // Create immediate notification if created as expired/expiring
+  if (status === "expired") {
+    await db.notification.create({
+      data: { userId, foodItemId: food.id, title: "Item Expired!", message: `${item.name} has passed its expiration date.`, type: "error" }
+    })
+    await sendExpirationEmail(userId, food.id)
+  } else if (status === "expiring-soon") {
+    await db.notification.create({
+      data: { userId, foodItemId: food.id, title: "Expiring Soon!", message: `${item.name} will expire in few days.`, type: "warning" }
+    })
+    await sendExpirationEmail(userId, food.id)
+  }
+
+  revalidatePath("/dashboard", "layout")
   return mapToFoodItem(food)
 }
 
@@ -64,8 +91,14 @@ export async function modifyFoodItem(userId: string, itemId: string, updates: Pa
   const dataToUpdate: any = { ...updates }
 
   if (updates.expirationDate) {
-    dataToUpdate.expirationDate = new Date(updates.expirationDate)
-    dataToUpdate.status = calculateStatus(updates.expirationDate)
+    const expirationDate = new Date(updates.expirationDate)
+    if (updates.expirationTime) {
+      const [hours, minutes] = updates.expirationTime.split(":").map(Number)
+      expirationDate.setHours(hours, minutes)
+    }
+    dataToUpdate.expirationDate = expirationDate
+    dataToUpdate.status = calculateStatus(expirationDate.toISOString())
+    delete dataToUpdate.expirationTime
   }
   if (updates.purchaseDate) {
     dataToUpdate.purchaseDate = new Date(updates.purchaseDate)
@@ -81,15 +114,34 @@ export async function modifyFoodItem(userId: string, itemId: string, updates: Pa
       },
     }
   }
+  
+  delete dataToUpdate.createdAt
+  delete dataToUpdate.userId
 
   try {
+    const oldItem = await db.foodItem.findUnique({ where: { id: itemId, userId } })
+
     const food = await db.foodItem.update({
       where: { id: itemId, userId },
       data: dataToUpdate,
       include: { category: true },
     })
-    revalidatePath("/dashboard")
-    revalidatePath("/reminders")
+
+    if (oldItem && oldItem.status !== food.status) {
+      if (food.status === "expired") {
+        await db.notification.create({
+          data: { userId, foodItemId: food.id, title: "Item Expired!", message: `${food.name} has passed its expiration date.`, type: "error" }
+        })
+        await sendExpirationEmail(userId, food.id)
+      } else if (food.status === "expiring-soon") {
+        await db.notification.create({
+          data: { userId, foodItemId: food.id, title: "Expiring Soon!", message: `${food.name} will expire in few days.`, type: "warning" }
+        })
+        await sendExpirationEmail(userId, food.id)
+      }
+    }
+
+    revalidatePath("/dashboard", "layout")
     return mapToFoodItem(food)
   } catch (error) {
     console.error("Modify error:", error)

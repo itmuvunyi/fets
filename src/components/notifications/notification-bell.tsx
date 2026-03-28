@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -13,12 +14,13 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
-  type Notification,
-} from "@/lib/notifications"
+} from "@/app/actions/notifications"
+import type { Notification } from "./notification-item"
 import { cn } from "@/lib/utils"
 
 export function NotificationBell() {
   const { user } = useAuth()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
@@ -32,29 +34,42 @@ export function NotificationBell() {
     }
   }, [user])
 
-  const loadNotifications = () => {
+  const loadNotifications = async () => {
     if (!user) return
-    const userNotifications = getNotifications(user.id)
-    setNotifications(userNotifications)
-    setUnreadCount(getUnreadCount(user.id))
+    try {
+      const [userNotifications, unread] = await Promise.all([
+        getNotifications(user.id),
+        getUnreadCount(user.id)
+      ])
+      setNotifications(userNotifications as unknown as Notification[])
+      setUnreadCount(unread)
+    } catch (e) {
+      console.error(e)
+    }
   }
 
-  const handleMarkAsRead = (notificationId: string) => {
+  const handleMarkAsRead = async (notificationId: string) => {
     if (!user) return
-    markNotificationAsRead(user.id, notificationId)
-    loadNotifications()
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n))
+    setUnreadCount(prev => Math.max(0, prev - 1))
+    await markNotificationAsRead(notificationId)
   }
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     if (!user) return
-    markAllNotificationsAsRead(user.id)
-    loadNotifications()
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setUnreadCount(0)
+    await markAllNotificationsAsRead(user.id)
   }
 
-  const handleDelete = (notificationId: string) => {
+  const handleDelete = async (notificationId: string) => {
     if (!user) return
-    deleteNotification(user.id, notificationId)
-    loadNotifications()
+    const n = notifications.find(x => x.id === notificationId)
+    setNotifications(prev => prev.filter(n => n.id !== notificationId))
+    if (n && !n.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    }
+    await deleteNotification(notificationId)
   }
 
   const getNotificationIcon = (type: Notification["type"]) => {
@@ -120,8 +135,20 @@ export function NotificationBell() {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
+                  onClick={() => {
+                    handleMarkAsRead(notification.id)
+                    setIsOpen(false)
+                    // Navigate based on type
+                    if (notification.type === "error" || notification.title.toLowerCase().includes("expired")) {
+                      router.push("/dashboard/expired")
+                    } else if (notification.type === "warning" || notification.title.toLowerCase().includes("expiring")) {
+                      router.push("/dashboard/reminders")
+                    } else {
+                      router.push("/dashboard")
+                    }
+                  }}
                   className={cn(
-                    "p-3 mb-2 rounded-lg border-l-4 bg-card hover:bg-accent/50 transition-colors",
+                    "p-3 mb-2 rounded-lg border-l-4 bg-card hover:bg-accent/50 transition-colors cursor-pointer",
                     getNotificationColor(notification.type),
                     !notification.read && "bg-accent/20",
                   )}
@@ -135,7 +162,7 @@ export function NotificationBell() {
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{notification.message}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(notification.timestamp).toLocaleString()}
+                        {new Date(notification.createdAt).toLocaleString()}
                       </p>
                     </div>
                     <div className="flex gap-1">

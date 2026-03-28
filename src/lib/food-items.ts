@@ -10,6 +10,8 @@ export interface FoodItem {
   barcode?: string
   notes?: string
   userId: string
+  createdAt?: string
+  expirationTime?: string // Format: HH:mm
 }
 
 export interface FoodCategory {
@@ -64,9 +66,7 @@ export const UNITS = [
 ]
 
 export function calculateStatus(expirationDate: string, alertThreshold = 3): FoodItem["status"] {
-  const today = new Date()
-  const expiry = new Date(expirationDate)
-  const daysUntilExpiry = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const daysUntilExpiry = getDaysUntilExpiry(expirationDate)
 
   if (daysUntilExpiry < 0) return "expired"
   if (daysUntilExpiry <= alertThreshold) return "expiring-soon"
@@ -75,6 +75,8 @@ export function calculateStatus(expirationDate: string, alertThreshold = 3): Foo
 
 export function getDaysUntilExpiry(expirationDate: string): number {
   const today = new Date()
+  today.setHours(0, 0, 0, 0)
   const expiry = new Date(expirationDate)
-  return Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  expiry.setHours(0, 0, 0, 0)
+  return Math.round((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }

@@ -101,51 +101,51 @@ export function FoodItemCard({ item, onEdit, onDelete }: FoodItemCardProps) {
   return (
     <Card
       className={cn(
-        "transition-all duration-200 hover:shadow-md",
+        "transition-all duration-200 hover:shadow-md h-full flex flex-col",
         item.status === "expired" && "border-destructive/50",
         item.status === "expiring-soon" && "border-yellow-500/50",
       )}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{category?.icon || "📦"}</span>
-            <div>
-              <h3 className="font-semibold text-lg">{item.name}</h3>
-              <p className="text-sm text-muted-foreground">{category?.name}</p>
+      <CardContent className="p-4 flex-1 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="text-3xl shrink-0 mt-0.5">{category?.icon || "📦"}</span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-base sm:text-lg leading-tight line-clamp-2" title={item.name}>{item.name}</h3>
+              <p className="text-sm text-muted-foreground truncate mt-0.5">{category?.name}</p>
             </div>
           </div>
-          <Badge className={cn(getStatusColor(), "text-[10px] sm:text-xs px-2 py-0.5 h-auto min-h-6 flex items-center whitespace-nowrap")}>
-            {item.status === "expired" && <AlertTriangle className="w-3 h-3 mr-1 shrink-0" />}
-            <span className="truncate">{getStatusText()}</span>
+          <Badge className={cn(getStatusColor(), "text-[11px] sm:text-xs px-2.5 py-1 flex items-center w-fit shrink-0 self-start sm:self-auto")}>
+            {item.status === "expired" && <AlertTriangle className="w-3.5 h-3.5 mr-1.5 shrink-0" />}
+            <span className="whitespace-normal sm:whitespace-nowrap text-left leading-tight">{getStatusText()}</span>
           </Badge>
         </div>
 
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Package className="w-4 h-4" />
-            <span>
+        <div className="space-y-2.5 mb-5 flex-1">
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <Package className="w-4 h-4 shrink-0 opacity-70" />
+            <span className="truncate">
               {item.quantity} {item.unit}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span>Expires: {item.expirationDate}</span>
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <Calendar className="w-4 h-4 shrink-0 opacity-70" />
+            <span className="truncate">Expires: {item.expirationDate}</span>
           </div>
-          {item.notes && <p className="text-sm text-muted-foreground mt-2 p-2 bg-muted rounded">{item.notes}</p>}
+          {item.notes && <p className="text-sm text-muted-foreground mt-3 p-3 bg-muted/50 rounded-md line-clamp-3 whitespace-pre-wrap border border-border/50">{item.notes}</p>}
         </div>
 
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => onEdit(item)} 
+        <div className="flex gap-2 mt-auto pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(item)}
             className="flex-1 hover:bg-secondary hover:text-secondary-foreground"
           >
             <Edit className="w-4 h-4 mr-1" />
             Edit
           </Button>
-          
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -169,7 +169,7 @@ export function FoodItemCard({ item, onEdit, onDelete }: FoodItemCardProps) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
+                <AlertDialogAction
                   onClick={handleDelete}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >

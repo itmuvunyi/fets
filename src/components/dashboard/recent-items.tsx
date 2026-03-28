@@ -22,9 +22,13 @@ export function RecentItems({ refreshTrigger, showAll = false }: RecentItemsProp
   useEffect(() => {
     if (user) {
       fetchFoodItems(user.id).then(items => {
-        // Sort by purchase date (most recent first)
+        // Sort by creation date or purchase date (most recent first)
         const sorted = items
-          .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+          .sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.purchaseDate).getTime()
+            const dateB = new Date(b.createdAt || b.purchaseDate).getTime()
+            return dateB - dateA
+          })
         
         setRecentItems(showAll ? sorted : sorted.slice(0, 5))
       })

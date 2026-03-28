@@ -16,8 +16,11 @@ import { addToast } from "@/lib/toast"
 import { fetchFoodItems } from "@/app/actions/food"
 import { useEffect } from "react"
 
+import { useTranslation } from "@/lib/i18n"
+
 export default function DashboardPage() {
   const { user } = useAuth()
+  const t = useTranslation(user?.language)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingItem, setEditingItem] = useState<FoodItem | null>(null)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -55,44 +58,53 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
-        <p className="text-muted-foreground animate-pulse text-lg">Loading your inventory...</p>
+      <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh] font-mono">
+        <p className="text-muted-foreground animate-pulse text-lg">{t.loadingInventory}</p>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8 max-w-5xl">
+    <div className="container mx-auto px-4 py-8 space-y-8 max-w-5xl font-mono">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome back, {user.name.split(' ')[0]}!</h1>
-        <p className="text-muted-foreground italic">Track, manage, and never waste food again.</p>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">
+          {t.welcomeBackName} {user.name.split(' ')[0]}!
+        </h1>
+        <p className="text-muted-foreground italic font-medium">{t.trackManageNeverWaste}</p>
       </div>
 
       {showDairySuggestion && (
-        <Card className="bg-amber-50 border-amber-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
-              <AlertTriangle className="w-5 h-5" />
+        <Card className="bg-amber-50/50 border-amber-200 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
+          <CardContent className="p-4 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="p-3 bg-white rounded-xl text-amber-600 shadow-sm border border-amber-100">
+              <AlertTriangle className="w-6 h-6" />
             </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-amber-900">Smart Alert Suggestion</h3>
-              <p className="text-sm text-amber-800">
-                You store mostly dairy products. We suggest setting your expiry alerts to <strong>2 days</strong> for better freshness tracking.
+            <div className="flex-1 space-y-1">
+              <h3 className="font-bold text-amber-900 flex items-center gap-2">
+                <Info className="w-4 h-4" />
+                {t.smartAlertSuggestion}
+              </h3>
+              <p className="text-sm text-amber-800 leading-relaxed font-medium">
+                {t.dairySuggestionText}
               </p>
             </div>
             <Button 
-              variant="outline" 
+              variant="default" 
               size="sm" 
-              className="bg-white border-amber-200 hover:bg-amber-100 text-amber-900"
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95"
               onClick={async () => {
                 const result = await updateUserSettings(user.id, { alertThresholdDays: 2 })
                 if (result.success) {
-                  addToast({ title: "Settings Updated", description: "Your alert threshold is now set to 2 days.", type: "success" })
+                  addToast({ 
+                    title: t.settingsUpdatedToast, 
+                    description: t.alertThresholdSetTo, 
+                    type: "success" 
+                  })
                   window.location.reload()
                 }
               }}
             >
-              Apply Now
+              {t.applyNow}
             </Button>
           </CardContent>
         </Card>
