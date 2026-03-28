@@ -4,6 +4,21 @@ A professional web application designed to help users track food expiration date
 
 **Tech Stack:** Next.js (T3 Stack), Prisma ORM, Supabase (Postgres), Tailwind CSS, Nodemailer
 
+## Folder Structure
+
+Below is an overview of the key directories in the project:
+
+- **`prisma/`**: Contains the Prisma schema (`schema.prisma`) which defines the database models and migrations for the application's data layer.
+- **`public/`**: Stores static assets such as images, icons, and fonts that are served directly by the web server.
+- **`src/app/`**: The core of the Next.js App Router. It contains all the pages, layouts, API routes, and Server Actions that handle the routing and server-side logic.
+- **`src/components/`**: Reusable React components used throughout the application. It includes a `ui/` folder for base UI elements (like buttons and inputs) and feature-specific folders (like `food/` or `auth/`).
+- **`src/hooks/`**: Custom React hooks that encapsulate reusable client-side logic and state management.
+- **`src/lib/`**: Shared utility functions, configuration files, and third-party library initializations (e.g., Prisma client setup).
+- **`src/server/`**: Backend-specific logic, including database access layer and tRPC router definitions for type-safe API communication.
+- **`src/styles/`**: Global CSS styles and Tailwind configuration used for consistent styling across the application.
+- **`src/trpc/`**: Configuration and boilerplate for tRPC, enabling end-to-end type safety between the frontend and backend.
+
+
 ---
 
 ## Setup Instructions
